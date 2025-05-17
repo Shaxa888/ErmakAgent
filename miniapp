@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Telegram Mini App — Тест</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    button { margin: 5px; padding: 10px; font-size: 16px; }
+    h2 { color: #444; }
+    input { margin-left: 5px; width: 60px; }
+  </style>
+</head>
+<body>
+  <h2>Выбор рабочей зоны</h2>
+  <div id="zones"></div>
+
+  <h2>Выбор дня</h2>
+  <div id="days"></div>
+
+  <h2>Выбор клиента</h2>
+  <div id="clients"></div>
+
+  <h2>Выбор товаров</h2>
+  <div id="products"></div>
+
+  <h2>Выбор способа оплаты</h2>
+  <div id="payments"></div>
+
+  <button onclick="confirmOrder()">✅ Завершить заказ</button>
+
+  <script>
+    const appState = {
+      selectedZone: null,
+      selectedDay: null,
+      selectedClient: null,
+      selectedProducts: [],
+      selectedPayment: null,
+      orderConfirmed: false,
+    };
+
+    const workZones = {
+      'РЗона 1': {
+        products: {
+          'Писта': ['100г', '200г', '160г'],
+          'Курт': ['30г', '47г', '60г'],
+        },
+        clientsByDay: {
+          'Пн': ['Клиент 1', 'Клиент 2'],
+          'Вт': ['Клиент 3', 'Клиент 4'],
+        },
+      },
+      'РЗона 2': {
+        products: {
+          'Сушка': ['50г', '100г'],
+          'Арахис': ['35г', '60г'],
+        },
+        clientsByDay: {
+          'Чт': ['Клиент 5', 'Клиент 6'],
+          'Пт': ['Клиент 7', 'Клиент 8'],
+        },
+      },
+    };
+
+    const paymentMethods = ['Наличные деньги', 'Перечисление'];
+
+    const getLastTwoWeekdays = () => {
+      const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+      const today = new Date().getDay();
+      const mapJSDayToRU = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+      const todayRU = mapJSDayToRU[today];
+      const index = days.indexOf(todayRU);
+      const validDays = [];
+      let i = index - 1;
+      while (validDays.length < 2) {
+        if (i < 0) i = 6;
+        validDays.push(days[i]);
+        i--;
+      }
+      return validDays;
+    };
+
+    function selectZone(zone) {
+      appState.selectedZone = zone;
+      appState.selectedDay = null;
+      appState.selectedClient = null;
+      appState.selectedProducts = [];
+      appState.selectedPayment = null;
+      appState.orderConfirmed = false;
+      renderDays();
+    }
+
+    function selectDay(day) {
+      appState.selectedDay = day;
+      appState.selectedClient = null;
+      appState.selectedProducts = [];
+      appState.selectedPayment = null;
+      appState.orderConfirmed = false;
+      renderClients();
+    }
+
+    function selectClient(client) {
+      appState.selectedClient = client;
+      appState.selectedProducts = [];
+      appState.selectedPayment = null;
+      appState.orderConfirmed = false;
+      renderProducts();
+    }
+
+    function toggleProduct(product, weight) {
+      const key = `${product}_${weight}`;
+      const quantity = document.getElementById(`qty_${key}`).value;
+      const blocks = document.getElementById(`blk_${key}`).value;
+      const index = appState.selectedProducts.findIndex(p => p.product === product && p.weight === weight);
+      if (quantity > 0 || blocks > 0) {
+        const productObj = { product, weight, quantity: parseInt(quantity), blocks: parseInt(blocks) };
+        if (index >= 0) appState.selectedProducts[index] = productObj;
+        else appState.selectedProducts.push(productObj);
+      } else if (index >= 0) {
+        appState.selectedProducts.splice(index, 1);
+      }
+    }
+
+    function selectPayment(method) {
+      appState.selectedPayment = method;
+    }
+
+    function confirmOrder() {
+      if (
+        appState.selectedZone &&
+        appState.selectedDay &&
+        appState.selectedClient &&
+        appState.selectedProducts.length > 0 &&
+        appState.selectedPayment
+      ) {
+        appState.orderConfirmed = true;
+        sendOrderToOperator();
+      } else {
+        alert("Пожалуйста, выберите все параметры перед подтверждением заказа.");
+      }
+    }
+
+    function sendOrderToOperator() {
+      const order = {
+        zone: appState.selectedZone,
+        day: appState.selectedDay,
+        client: appState.selectedClient,
+        products: appState.selectedProducts,
+        payment: appState.selectedPayment,
+        timestamp: new Date().toISOString(),
+      };
+      console.log("Отправка заказа оператору:", order);
+    }
+
+    function renderZones() {
+      const container = document.getElementById('zones');
+      container.innerHTML = '';
+      Object.keys(workZones).forEach(zone => {
+        const btn = document.createElement('button');
+        btn.innerText = zone;
+        btn.onclick = () => selectZone(zone);
+        container.appendChild(btn);
+      });
+    }
+
+    function renderDays() {
+      const container = document.getElementById('days');
+      container.innerHTML = '';
+      const validDays = getLastTwoWeekdays();
+      validDays.forEach(day => {
+        const btn = document.createElement('button');
+        btn.innerText = day;
+        btn.onclick = () => selectDay(day);
+        container.appendChild(btn);
+      });
+    }
+
+    function renderClients() {
+      const container = document.getElementById('clients');
+      container.innerHTML = '';
+      const clients = workZones[appState.selectedZone].clientsByDay[appState.selectedDay] || [];
+      clients.forEach(client => {
+        const btn = document.createElement('button');
+        btn.innerText = client;
+        btn.onclick = () => selectClient(client);
+        container.appendChild(btn);
+      });
+    }
+
+    function renderProducts() {
+      const container = document.getElementById('products');
+      container.innerHTML = '';
+      const products = workZones[appState.selectedZone].products;
+      Object.keys(products).forEach(product => {
+        products[product].forEach(weight => {
+          const div = document.createElement('div');
+          const label = document.createElement('label');
+          const key = `${product}_${weight}`;
+          label.innerText = `${product} ${weight}`;
+          const qty = document.createElement('input');
+          qty.type = 'number';
+          qty.min = 0;
+          qty.placeholder = 'шт';
+          qty.id = `qty_${key}`;
+          qty.oninput = () => toggleProduct(product, weight);
+          const blk = document.createElement('input');
+          blk.type = 'number';
+          blk.min = 0;
+          blk.placeholder = 'бл';
+          blk.id = `blk_${key}`;
+          blk.oninput = () => toggleProduct(product, weight);
+          div.appendChild(label);
+          div.appendChild(qty);
+          div.appendChild(blk);
+          container.appendChild(div);
+        });
+      });
+
+      const paymentContainer = document.getElementById('payments');
+      paymentContainer.innerHTML = '';
+      paymentMethods.forEach(method => {
+        const btn = document.createElement('button');
+        btn.innerText = method;
+        btn.onclick = () => selectPayment(method);
+        paymentContainer.appendChild(btn);
+      });
+    }
+
+    renderZones();
+  </script>
+</body>
+</html>
